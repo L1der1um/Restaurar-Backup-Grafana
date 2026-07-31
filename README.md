@@ -1,56 +1,287 @@
-Restauração Automatizada do Grafana (LTS)
-Este repositório/diretório contém o script oficial de restauração automatizada para o Grafana. Ele foi projetado para atuar em conjunto com o nosso script de backup diário, garantindo uma recuperação de desastres (Disaster Recovery) rápida, interativa e à prova de falhas de permissão.
+# 🚀 Grafana LTS Restore
 
-Visão Geral
-O script restore_grafana.sh automatiza a injeção de configurações, plugins e do banco de dados SQLite do Grafana. Ele possui um menu interativo que lista os backups disponíveis e aplica correções automáticas de permissões (chown) para evitar atritos com o sistema operacional após a restauração.
+<p align="center">
 
-Funcionalidades
-Menu Interativo: Lista automaticamente todas as subpastas de backup encontradas em /backup_grafana, ordenadas da mais recente para a mais antiga.
+![Bash](https://img.shields.io/badge/Bash-Script-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-Compatible-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![Grafana](https://img.shields.io/badge/Grafana-LTS-F46800?style=for-the-badge&logo=grafana&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-Busca Recursiva (Smart Find): Não exige que os arquivos de backup tenham nomes estáticos fixos. O script varre a pasta selecionada e localiza as extensões .tar.gz (estrutura) e .sqlite3.gz (banco de dados) automaticamente.
+</p>
 
-Proteção de Integridade: Desliga temporariamente o serviço do Grafana (grafana-server) durante a injeção de dados para evitar corrupção do banco SQLite em uso.
+Script desenvolvido para realizar a **restauração completa de uma instalação do Grafana LTS**, recuperando automaticamente a estrutura do ambiente e o banco de dados SQLite através de backups previamente gerados.
 
-Auto-Correção de Permissões (UID Fix): Mapeia e corrige a propriedade das pastas /etc/grafana e /var/lib/grafana para o usuário de sistema grafana local, prevenindo erros de tela cinza ou Permission Denied.
+O processo foi pensado para ser **seguro, simples e totalmente interativo**, minimizando erros durante uma recuperação de desastre.
 
-Pré-requisitos
-Antes de executar este script, garanta que o seu ambiente atenda aos seguintes requisitos:
+---
 
-Sistema Operacional: Ubuntu ou Debian.
+# ✨ Funcionalidades
 
-Privilégios: Acesso completo de root ou permissões via sudo.
+- 📂 Lista automaticamente todos os backups disponíveis.
+- 🔎 Pesquisa recursivamente os arquivos necessários.
+- 📋 Menu interativo para seleção do backup.
+- ✅ Validação dos arquivos antes da restauração.
+- 🛑 Interrompe automaticamente o serviço do Grafana.
+- 📦 Restaura:
+  - `/etc/grafana`
+  - `/var/lib/grafana`
+- 🗄️ Restaura o banco SQLite compactado.
+- 🔒 Corrige automaticamente permissões e proprietários.
+- 🚀 Reinicia o serviço do Grafana ao finalizar.
+- 🎨 Interface amigável utilizando cores no terminal.
 
-Grafana Instalado: O servidor de destino já deve ter os binários do Grafana instalados. Este script restaura os dados, não instala o software do zero.
+---
 
-Estrutura de Diretórios: Os arquivos de backup devem estar localizados no diretório base padrão da automação:
+# 📁 Estrutura esperada dos backups
 
-Plaintext
-/backup_grafana/
-├── bkp_2026-07-30/
-│   ├── grafana_db_20260730.sqlite3.gz
-│   └── grafana_dirs_2026-07-30.tar.gz
-└── bkp_2026-07-31/
-    ├── grafana_db_20260731.sqlite3.gz
-    └── grafana_dirs_2026-07-31.tar.gz
-    
-Como Usar
-1. Dê permissão de execução ao script:
-O arquivo precisa ser executável para rodar no terminal.
+O script espera encontrar os backups dentro do diretório:
 
-Bash
+```text
+/backup_grafana
+```
+
+Exemplo:
+
+```text
+/backup_grafana
+│
+├── Backup_2026-07-30_18-00
+│   ├── grafana_dirs_2026-07-30.tar.gz
+│   └── grafana_db_2026-07-30.sqlite3.gz
+│
+├── Backup_2026-07-29_18-00
+│   ├── grafana_dirs_2026-07-29.tar.gz
+│   └── grafana_db_2026-07-29.sqlite3.gz
+│
+└── Backup_2026-07-28_18-00
+    ├── grafana_dirs_2026-07-28.tar.gz
+    └── grafana_db_2026-07-28.sqlite3.gz
+```
+
+A pesquisa é realizada **recursivamente**, portanto os arquivos podem estar em subdiretórios.
+
+---
+
+# 📦 Arquivos necessários
+
+Cada backup deve conter obrigatoriamente:
+
+| Arquivo | Descrição |
+|----------|-----------|
+| `grafana_dirs_*.tar.gz` | Backup da estrutura do Grafana |
+| `grafana_db_*.sqlite3.gz` | Backup compactado do banco SQLite |
+
+Caso algum deles esteja ausente, a restauração será interrompida.
+
+---
+
+# ⚙️ Como funciona
+
+O processo de restauração executa automaticamente as seguintes etapas:
+
+## 1️⃣ Verificação de permissões
+
+Confirma se o script está sendo executado como **root**.
+
+Caso contrário, a execução é interrompida.
+
+---
+
+## 2️⃣ Localização dos backups
+
+O script:
+
+- verifica a existência do diretório `/backup_grafana`;
+- lista todos os backups disponíveis;
+- ordena automaticamente do mais recente para o mais antigo.
+
+---
+
+## 3️⃣ Seleção do backup
+
+É apresentado um menu semelhante ao abaixo:
+
+```text
+[1] Backup_2026-07-30
+[2] Backup_2026-07-29
+[3] Backup_2026-07-28
+```
+
+O usuário apenas informa o número correspondente.
+
+---
+
+## 4️⃣ Validação
+
+Antes da restauração o script verifica se ambos os arquivos obrigatórios foram encontrados.
+
+---
+
+## 5️⃣ Confirmação
+
+Antes de modificar o ambiente é exibido um aviso:
+
+```text
+⚠️ ATENÇÃO:
+Este processo irá sobrescrever completamente o Grafana atual.
+```
+
+A restauração só continua após confirmação do usuário.
+
+---
+
+## 6️⃣ Processo automático
+
+O script executa exatamente nesta ordem:
+
+1. Para o serviço do Grafana
+2. Extrai a estrutura do backup
+3. Restaura o banco SQLite
+4. Corrige permissões
+5. Reinicia o serviço
+
+---
+
+# 🔄 Fluxo da restauração
+
+```text
+Selecionar Backup
+        │
+        ▼
+Verificar Arquivos
+        │
+        ▼
+Parar Grafana
+        │
+        ▼
+Restaurar Diretórios
+        │
+        ▼
+Restaurar Banco SQLite
+        │
+        ▼
+Corrigir Permissões
+        │
+        ▼
+Iniciar Grafana
+        │
+        ▼
+Restauração Finalizada
+```
+
+---
+
+# ▶️ Execução
+
+Conceda permissão de execução:
+
+```bash
 chmod +x restore_grafana.sh
-2. Execute o script como administrador:
+```
 
-Bash
+Execute como **root**:
+
+```bash
 sudo ./restore_grafana.sh
-3. Siga o fluxo na tela:
+```
 
-O script apresentará um menu numerado com as datas de backup disponíveis.
+---
 
-Digite o número correspondente à data desejada e pressione ENTER.
+# 📋 Etapas exibidas durante a execução
 
-Confirme a operação digitando s quando o sistema alertar sobre a sobrescrita dos dados atuais.
+Durante o processo o usuário acompanha todas as etapas:
 
-Aguarde a finalização (geralmente leva menos de 10 segundos).
+```text
+[ETAPA 1/4] Parando serviço do Grafana...
 
-Aviso Importante: Após a restauração em um servidor recém-instalado, se as versões do Grafana (antiga vs. nova) forem muito discrepantes, pode ser necessário atualizar os plugins manualmente executando grafana cli plugins update-all e reiniciando o serviço.
+[ETAPA 2/4] Restaurando estrutura...
+
+[ETAPA 3/4] Restaurando banco SQLite...
+
+[ETAPA 4/4] Corrigindo permissões...
+
+Religando serviço...
+
+Restauração concluída!
+```
+
+---
+
+# 🔒 Permissões aplicadas
+
+Ao finalizar, o script garante que o ambiente permaneça consistente:
+
+```bash
+chown -R grafana:grafana /etc/grafana
+chown -R grafana:grafana /var/lib/grafana
+chmod 640 /var/lib/grafana/grafana.db
+```
+
+---
+
+# 📌 Pré-requisitos
+
+- Linux
+- Bash
+- Grafana instalado
+- systemd
+- SQLite como banco do Grafana
+- Permissão de root
+- Diretório `/backup_grafana`
+
+---
+
+# ⚠️ Importante
+
+Este script **sobrescreve completamente**:
+
+- configurações do Grafana;
+- banco de dados SQLite;
+- dashboards;
+- usuários;
+- organizações;
+- alertas;
+- datasources;
+- plugins presentes no backup.
+
+Recomenda-se executar apenas quando houver necessidade de restaurar integralmente um ambiente.
+
+---
+
+# ✅ Vantagens
+
+- Interface simples
+- Totalmente automatizado
+- Validação de arquivos
+- Evita restaurações incompletas
+- Processo seguro
+- Recuperação rápida de ambientes
+- Ideal para Disaster Recovery
+- Fácil adaptação para rotinas de administração
+
+---
+
+# 🛠️ Tecnologias utilizadas
+
+- Bash
+- systemctl
+- tar
+- gzip
+- zcat
+- find
+- chmod
+- chown
+
+---
+
+# 📄 Licença
+
+Este projeto está licenciado sob a licença **MIT**.
+
+Sinta-se à vontade para utilizar, modificar e distribuir.
+
+---
+
+# 👨‍💻 Autor
+
+Desenvolvido para automatizar a recuperação de ambientes **Grafana LTS**, reduzindo o tempo de restauração e padronizando o processo de recuperação em servidores Linux.
